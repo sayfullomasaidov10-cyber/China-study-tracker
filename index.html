@@ -37,13 +37,33 @@
       { id: 'sun', name: 'Воскресенье', short: 'ВС', full: 'Воскресенье (Перезагрузка & Анализ)' },
     ];
 
+    // Динамические пулы тем, которые будут сменяться по мере прохождения
+    const PYTHON_TOPICS = [
+      "Функции и аргументы (def, return)",
+      "Списки и методы (lists, append, sort)",
+      "Словари и пары ключ-значение (dicts)",
+      "Циклы for и while, условие if-else",
+      "Работа с файлами (open, read, write)",
+      "Алгоритмы поиска и сортировки",
+      "ООП: классы и объекты (class, __init__)"
+    ];
+
+    const ENGLISH_TOPICS = [
+      "15 новых слов + чтение тех. статьи",
+      "Грамматика: Past Simple vs Present Perfect",
+      "Аудирование: видео на IT-тему с субтитрами",
+      "Разбор идиом и разговорных фраз",
+      "Написание эссе / пересказ текста",
+      "Технический словарный запас (Computer Science)"
+    ];
+
     const MON_WED_FRI_SCHEDULE = [
       { id: 'mwf_1', time: '16:00 - 16:30', start: '16:00', end: '16:30', title: 'Отдых после школы, перекус', category: 'rest', desc: 'Перезагрузка после школы перед учебой' },
       { id: 'mwf_2', time: '16:30 - 17:30', start: '16:30', end: '17:30', title: 'Школьные ДЗ (Математика/Физика)', category: 'school', desc: 'Выполнение текущей домашней работы' },
       { id: 'mwf_3', time: '17:30 - 17:45', start: '17:30', end: '17:45', title: 'Перерыв 15 минут', category: 'rest', desc: 'Разминка, выпить воды' },
-      { id: 'mwf_4', time: '17:45 - 18:30', start: '17:45', end: '18:30', title: 'Английский (10-15 слов + статья/видео)', category: 'english', desc: 'Пополнение словарного запаса и чтение' },
+      { id: 'mwf_4', time: '17:45 - 18:30', start: '17:45', end: '18:30', title: 'Английский', category: 'english', desc: 'DYNAMIC_ENGLISH', isDynamic: true },
       { id: 'mwf_5', time: '18:30 - 19:30', start: '18:30', end: '19:30', title: 'Ужин и отдых', category: 'rest', desc: 'Прием пищи и семейное время' },
-      { id: 'mwf_6', time: '19:30 - 20:15', start: '19:30', end: '20:15', title: 'Программирование Python (Функции, структуры)', category: 'python', desc: 'Изучение списков, словарей и функций' },
+      { id: 'mwf_6', time: '19:30 - 20:15', start: '19:30', end: '20:15', title: 'Программирование Python', category: 'python', desc: 'DYNAMIC_PYTHON', isDynamic: true },
       { id: 'mwf_7', time: '20:15 - 20:30', start: '20:15', end: '20:30', title: 'Перерыв 15 минут', category: 'rest', desc: 'Дать глазам отдохнуть' },
       { id: 'mwf_8', time: '20:30 - 21:15', start: '20:30', end: '21:15', title: 'Углубленная Математика (сложные темы)', category: 'math', desc: 'Превращаем оценку 7 в 8-9 для топовых вузов' },
       { id: 'mwf_9', time: '21:15 - 23:00', start: '21:15', end: '23:00', title: 'Свободное время, игры, отдых', category: 'rest', desc: 'Время для хобби и подготовка ко сну' }
@@ -54,18 +74,18 @@
       { id: 'tt_2', time: '16:30 - 17:15', start: '16:30', end: '17:15', title: 'Дорога домой, отдых', category: 'rest', desc: 'Перерыв после курсов' },
       { id: 'tt_3', time: '17:15 - 18:15', start: '17:15', end: '18:15', title: 'Школьные ДЗ', category: 'school', desc: 'Выполнение текущих уроков' },
       { id: 'tt_4', time: '18:30 - 19:30', start: '18:30', end: '19:30', title: 'Ужин и отдых', category: 'rest', desc: 'Прием пищи и короткий отдых' },
-      { id: 'tt_5', time: '19:30 - 20:15', start: '19:30', end: '20:15', title: 'Домашка по курсам английского', category: 'english', desc: 'Закрепление свежего материала с уроков' },
+      { id: 'tt_5', time: '19:30 - 20:15', start: '19:30', end: '20:15', title: 'Домашка по курсам английского', category: 'english', desc: 'DYNAMIC_ENGLISH', isDynamic: true },
       { id: 'tt_6', time: '20:15 - 20:30', start: '20:15', end: '20:30', title: 'Перерыв 15 минут', category: 'rest', desc: 'Короткая пауза' },
-      { id: 'tt_7', time: '20:30 - 21:15', start: '20:30', end: '21:15', title: 'Программирование (Практика, алгоритмы)', category: 'python', desc: 'Решение логических задач на Stepik / LeetCode' },
+      { id: 'tt_7', time: '20:30 - 21:15', start: '20:30', end: '21:15', title: 'Программирование (Практика, алгоритмы)', category: 'python', desc: 'DYNAMIC_PYTHON', isDynamic: true },
       { id: 'tt_8', time: '21:15 - 23:00', start: '21:15', end: '23:00', title: 'Свободное время', category: 'rest', desc: 'Полный отдых' }
     ];
 
     const SAT_SCHEDULE = [
       { id: 'sat_1', time: '15:00 - 16:30', start: '15:00', end: '16:30', title: 'Курсы английского языка', category: 'english', desc: 'Субботнее занятие' },
       { id: 'sat_2', time: '16:30 - 17:15', start: '16:30', end: '17:15', title: 'Отдых после курсов', category: 'rest', desc: 'Передышка' },
-      { id: 'sat_3', time: '17:15 - 18:15', start: '17:15', end: '18:15', title: 'Закрепление английского (ДЗ)', category: 'english', desc: 'Повторение грамматики и домашнего задания' },
+      { id: 'sat_3', time: '17:15 - 18:15', start: '17:15', end: '18:15', title: 'Закрепление английского (ДЗ)', category: 'english', desc: 'DYNAMIC_ENGLISH', isDynamic: true },
       { id: 'sat_4', time: '18:30 - 19:30', start: '18:30', end: '19:30', title: 'Ужин и отдых', category: 'rest', desc: 'Прием пищи' },
-      { id: 'sat_5', time: '19:30 - 20:45', start: '19:30', end: '20:45', title: 'Программирование (Проект Python + GitHub)', category: 'python', desc: 'Разработка Telegram-бота / игры и пуш на GitHub' },
+      { id: 'sat_5', time: '19:30 - 20:45', start: '19:30', end: '20:45', title: 'Программирование (Проект Python + GitHub)', category: 'python', desc: 'DYNAMIC_PYTHON', isDynamic: true },
       { id: 'sat_6', time: '20:45 - 23:00', start: '20:45', end: '23:00', title: 'Отдых, Minecraft, общение', category: 'rest', desc: 'Заслуженный вечерний отдых' }
     ];
 
@@ -107,7 +127,6 @@
       const [activeTab, setActiveTab] = useState('schedule');
       const [selectedDay, setSelectedDay] = useState(realTodayId);
 
-      // При смене реального дня авто-переключаем выбранный день
       useEffect(() => {
         setSelectedDay(realTodayId);
       }, [realTodayId]);
@@ -120,6 +139,26 @@
           return {};
         }
       });
+
+      // Подсчет выполненных задач по категориям для смены тем
+      const pythonCompletedCount = useMemo(() => {
+        let count = 0;
+        Object.keys(completedTasks).forEach(key => {
+          if (completedTasks[key] && key.includes('python')) count++;
+        });
+        return count;
+      }, [completedTasks]);
+
+      const englishCompletedCount = useMemo(() => {
+        let count = 0;
+        Object.keys(completedTasks).forEach(key => {
+          if (completedTasks[key] && key.includes('english')) count++;
+        });
+        return count;
+      }, [completedTasks]);
+
+      const currentPythonTopic = PYTHON_TOPICS[pythonCompletedCount % PYTHON_TOPICS.length];
+      const currentEnglishTopic = ENGLISH_TOPICS[englishCompletedCount % ENGLISH_TOPICS.length];
 
       const [projects, setProjects] = useState(() => {
         try {
@@ -160,7 +199,6 @@
       }, [now]);
 
       const toggleTask = (taskId) => {
-        // Галочки можно ставить/снимать ТОЛЬКО на сегодняшний день
         if (selectedDay !== realTodayId) return;
         const key = `${selectedDay}_${taskId}`;
         setCompletedTasks(prev => ({ ...prev, [key]: !prev[key] }));
@@ -379,7 +417,7 @@
                     </div>
                     <p className="text-xs text-slate-400 mt-1">
                       {isTodaySelected 
-                        ? 'Отмечай выполненные задачи галочками для расчета недельного прогресса' 
+                        ? 'Отмечай выполненные задачи галочками — темы Python и Английского будут меняться автоматически!' 
                         : 'Вы просматриваете расписание другого дня. Нажимать галочки можно только на сегодня.'}
                     </p>
                   </div>
@@ -405,6 +443,14 @@
                     const isCompleted = !!completedTasks[`${selectedDay}_${task.id}`];
                     const isActive = isTodaySelected && activeBlock?.id === task.id;
                     const categoryStyle = CATEGORIES[task.category] || CATEGORIES.rest;
+
+                    // Подставляем динамическую тему взамен заглушки
+                    let taskDesc = task.desc;
+                    if (task.desc === 'DYNAMIC_PYTHON') {
+                      taskDesc = `Текущая тема: ${currentPythonTopic}`;
+                    } else if (task.desc === 'DYNAMIC_ENGLISH') {
+                      taskDesc = `Текущая тема: ${currentEnglishTopic}`;
+                    }
 
                     return (
                       <div
@@ -453,7 +499,9 @@
                           <h3 className={`text-sm font-semibold mt-1.5 ${isCompleted ? 'line-through text-slate-400' : 'text-slate-100'}`}>
                             {task.title}
                           </h3>
-                          <p className="text-xs text-slate-400 mt-0.5">{task.desc}</p>
+                          <p className={`text-xs mt-0.5 ${task.isDynamic ? 'text-cyan-300 font-medium' : 'text-slate-400'}`}>
+                            {taskDesc}
+                          </p>
                         </div>
                       </div>
                     );
@@ -475,38 +523,15 @@
                   </div>
 
                   <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl">
-                    <div className="text-slate-400 text-xs mb-2">Серия дисциплины</div>
-                    <div className="text-3xl font-extrabold text-amber-400 font-mono">{stats.overallPercent > 50 ? '5 Дней 🔥' : '2 Дня 👍'}</div>
-                    <p className="text-xs text-slate-400 mt-3">Регулярность — ключ к поступлению в топ-вузы Китая.</p>
+                    <div className="text-slate-400 text-xs mb-2">Текущая тема Python</div>
+                    <div className="text-sm font-bold text-indigo-400 mt-1">{currentPythonTopic}</div>
+                    <p className="text-[11px] text-slate-400 mt-2">Автоматически сменится после отметки урока.</p>
                   </div>
 
                   <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl">
-                    <div className="text-slate-400 text-xs mb-2">Шанс на грант CSC</div>
-                    <div className="text-3xl font-extrabold text-emerald-400 font-mono">Высокий</div>
-                    <p className="text-xs text-slate-400 mt-3">При сохранении темпа по математике и Python.</p>
-                  </div>
-                </div>
-
-                <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-5">
-                  <h3 className="font-bold text-slate-200 text-sm">Прогресс по направлениям</h3>
-                  <div className="space-y-4">
-                    {Object.entries(stats.categoryTotals).map(([catKey, total]) => {
-                      if (total === 0) return null;
-                      const done = stats.categoryStats[catKey] || 0;
-                      const pct = Math.round((done / total) * 100);
-                      const catInfo = CATEGORIES[catKey];
-                      return (
-                        <div key={catKey} className="space-y-1.5">
-                          <div className="flex justify-between text-xs">
-                            <span className="font-medium text-slate-300">{catInfo.label}</span>
-                            <span className="font-mono text-slate-400">{done} / {total} ({pct}%)</span>
-                          </div>
-                          <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                            <div className="bg-cyan-500 h-full transition-all duration-300" style={{ width: `${pct}%` }} />
-                          </div>
-                        </div>
-                      );
-                    })}
+                    <div className="text-slate-400 text-xs mb-2">Текущая тема Английского</div>
+                    <div className="text-sm font-bold text-cyan-400 mt-1">{currentEnglishTopic}</div>
+                    <p className="text-[11px] text-slate-400 mt-2">Обновляется по мере вашего прогресса.</p>
                   </div>
                 </div>
               </div>
