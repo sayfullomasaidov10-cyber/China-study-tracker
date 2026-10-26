@@ -1,0 +1,40 @@
+# China-study-tracker
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Masato's China Study & IT Tracker</title>
+  <!-- React & Tailwind via CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="manifest" href="data:application/json,{%22name%22:%22Masato%20Tracker%22,%22short_name%22:%22Tracker%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22}">
+</head>
+<body class="bg-slate-900 text-slate-100">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    // Здесь будет код нашего компонента App
+    const { useState, useEffect } = React;
+
+    function App() {
+      return (
+        <div class="min-h-screen flex items-center justify-center p-4">
+          <div class="bg-slate-800 p-6 rounded-2xl shadow-xl max-w-md w-full text-center border border-slate-700">
+            <h1 class="text-2xl font-bold text-cyan-400 mb-2">Masato's China Study & IT Tracker</h1>
+            <p class="text-slate-300 text-sm mb-4">Твой персональный трекер успешно запущен через GitHub Pages!</p>
+            <div class="p-3 bg-slate-900/50 rounded-lg text-xs text-slate-400">
+              10 класс • IELTS 7.0+ • Computer Science
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
