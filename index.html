@@ -14,9 +14,6 @@
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- PWA Manifest -->
   <link rel="manifest" href='data:application/json,{"name":"Masato Tracker","short_name":"Tracker","start_url":".","display":"standalone","background_color":"#020617","theme_color":"#020617"}'>
@@ -99,14 +96,21 @@
     function App() {
       const [now, setNow] = useState(new Date());
 
-      const getCurrentDayId = () => {
-        const dayNum = new Date().getDay();
+      const getCurrentDayId = (dateObj) => {
+        const dayNum = dateObj.getDay();
         const map = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
         return map[dayNum];
       };
 
+      const realTodayId = getCurrentDayId(now);
+
       const [activeTab, setActiveTab] = useState('schedule');
-      const [selectedDay, setSelectedDay] = useState(getCurrentDayId());
+      const [selectedDay, setSelectedDay] = useState(realTodayId);
+
+      // При смене реального дня авто-переключаем выбранный день
+      useEffect(() => {
+        setSelectedDay(realTodayId);
+      }, [realTodayId]);
 
       const [completedTasks, setCompletedTasks] = useState(() => {
         try {
@@ -156,6 +160,8 @@
       }, [now]);
 
       const toggleTask = (taskId) => {
+        // Галочки можно ставить/снимать ТОЛЬКО на сегодняшний день
+        if (selectedDay !== realTodayId) return;
         const key = `${selectedDay}_${taskId}`;
         setCompletedTasks(prev => ({ ...prev, [key]: !prev[key] }));
       };
@@ -166,7 +172,7 @@
       };
 
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      const isTodaySelected = selectedDay === getCurrentDayId();
+      const isTodaySelected = selectedDay === realTodayId;
 
       const activeBlock = useMemo(() => {
         if (!isTodaySelected) return null;
@@ -256,7 +262,7 @@
             <div className="max-w-4xl mx-auto px-4 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-cyan-400 shadow-lg">
-                  🥷
+                  ⚡
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -314,31 +320,43 @@
             {activeTab === 'schedule' && (
               <div className="space-y-6">
                 {/* Days Selector */}
-                <div className="grid grid-cols-7 gap-1.5 bg-slate-900/60 p-2 rounded-xl border border-slate-800 overflow-x-auto">
-                  {DAYS.map((day) => {
-                    const isCurrentRealDay = day.id === getCurrentDayId();
-                    const isSelected = selectedDay === day.id;
-                    return (
-                      <button
-                        key={day.id}
-                        onClick={() => setSelectedDay(day.id)}
-                        className={`relative flex flex-col items-center justify-center p-2 rounded-lg border text-xs font-medium transition ${
-                          isSelected
-                            ? 'bg-slate-800 border-cyan-500 text-cyan-300 shadow-md font-bold'
-                            : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                        }`}
-                      >
-                        {isCurrentRealDay && (
-                          <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
-                          </span>
-                        )}
-                        <span className="text-xs sm:text-sm">{day.short}</span>
-                        <span className="text-[9px] opacity-70 mt-0.5 hidden sm:inline">{day.name.slice(0, 3)}</span>
-                      </button>
-                    );
-                  })}
+                <div className="flex items-center justify-between gap-2 bg-slate-900/60 p-2 rounded-xl border border-slate-800 overflow-x-auto">
+                  <div className="grid grid-cols-7 gap-1.5 flex-1 min-w-[320px]">
+                    {DAYS.map((day) => {
+                      const isRealToday = day.id === realTodayId;
+                      const isSelected = selectedDay === day.id;
+                      return (
+                        <button
+                          key={day.id}
+                          onClick={() => setSelectedDay(day.id)}
+                          className={`relative flex flex-col items-center justify-center p-2 rounded-lg border text-xs font-medium transition ${
+                            isSelected
+                              ? 'bg-slate-800 border-cyan-500 text-cyan-300 shadow-md font-bold'
+                              : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                          }`}
+                        >
+                          {isRealToday && (
+                            <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                            </span>
+                          )}
+                          <span className="text-xs sm:text-sm">{day.short}</span>
+                          <span className="text-[9px] opacity-70 mt-0.5 hidden sm:inline">{day.name.slice(0, 3)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {!isTodaySelected && (
+                    <button
+                      onClick={() => setSelectedDay(realTodayId)}
+                      className="px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-lg text-xs font-medium whitespace-nowrap transition"
+                      title="Вернуться к сегодняшнему дню"
+                    >
+                      🎯 На сегодня
+                    </button>
+                  )}
                 </div>
 
                 {/* Selected Day Info */}
@@ -348,13 +366,22 @@
                       <h2 className="text-lg font-bold text-slate-100">
                         {DAYS.find(d => d.id === selectedDay)?.full}
                       </h2>
-                      {selectedDay === getCurrentDayId() && (
-                        <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[11px] px-2.5 py-0.5 rounded-full font-semibold">
-                          Сегодня
+                      {isTodaySelected ? (
+                        <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[11px] px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          Сегодня (Активен для отметки)
+                        </span>
+                      ) : (
+                        <span className="bg-slate-800 text-slate-400 border border-slate-700 text-[11px] px-2.5 py-0.5 rounded-full font-medium">
+                          🔒 Просмотр (Только для чтения)
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">Отмечай выполненные задачи галочками для расчета недельного прогресса</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {isTodaySelected 
+                        ? 'Отмечай выполненные задачи галочками для расчета недельного прогресса' 
+                        : 'Вы просматриваете расписание другого дня. Нажимать галочки можно только на сегодня.'}
+                    </p>
                   </div>
 
                   {isTodaySelected && activeBlock ? (
@@ -367,7 +394,7 @@
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/40 px-3.5 py-2 rounded-xl border border-slate-800">
-                      {isTodaySelected ? 'Сейчас нет активных блоков по расписанию' : 'Просмотр расписания на выбранный день'}
+                      {isTodaySelected ? 'Сейчас нет активных блоков по расписанию' : 'Режим просмотра расписания'}
                     </div>
                   )}
                 </div>
@@ -383,19 +410,23 @@
                       <div
                         key={task.id}
                         onClick={() => toggleTask(task.id)}
-                        className={`group relative flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition ${
+                        className={`group relative flex items-start gap-4 p-4 rounded-xl border transition ${
+                          isTodaySelected 
+                            ? 'cursor-pointer hover:border-slate-700' 
+                            : 'cursor-not-allowed opacity-80'
+                        } ${
                           isActive
                             ? 'bg-slate-900 border-cyan-500 shadow-lg ring-1 ring-cyan-500/30'
                             : isCompleted
                             ? 'bg-slate-900/30 border-slate-800/60 opacity-60'
-                            : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
+                            : 'bg-slate-900/80 border-slate-800'
                         }`}
                       >
-                        <div className="mt-0.5 text-slate-500 group-hover:text-cyan-400">
+                        <div className="mt-0.5 text-slate-500">
                           {isCompleted ? (
                             <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">✓</div>
                           ) : (
-                            <div className="w-6 h-6 rounded-full border border-slate-600"></div>
+                            <div className={`w-6 h-6 rounded-full border ${isTodaySelected ? 'border-slate-600 group-hover:border-cyan-400' : 'border-slate-800 bg-slate-900/50'}`}></div>
                           )}
                         </div>
 
@@ -410,6 +441,11 @@
                             {isActive && (
                               <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-500 text-slate-950 font-bold uppercase tracking-wider animate-pulse">
                                 Сейчас
+                              </span>
+                            )}
+                            {!isTodaySelected && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700/50">
+                                Только для чтения
                               </span>
                             )}
                           </div>
