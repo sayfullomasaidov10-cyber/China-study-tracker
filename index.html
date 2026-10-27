@@ -37,7 +37,6 @@
       { id: 'sun', name: 'Воскресенье', short: 'ВС', full: 'Воскресенье (Перезагрузка & Анализ)' },
     ];
 
-    // Динамические пулы тем, которые будут сменяться по мере прохождения
     const PYTHON_TOPICS = [
       "Функции и аргументы (def, return)",
       "Списки и методы (lists, append, sort)",
@@ -113,6 +112,14 @@
       rest: { label: 'Отдых & Ужин', color: 'bg-slate-700/30 text-slate-400 border-slate-700/40' },
     };
 
+    // Даты учебных четвертей 10 класса
+    const QUARTERS = [
+      { id: 1, name: "1-я четверть", endDate: new Date("2026-11-01T23:59:59"), active: true },
+      { id: 2, name: "2-я четверть", endDate: new Date("2026-12-31T23:59:59"), active: false },
+      { id: 3, name: "3-я четверть", endDate: new Date("2027-03-20T23:59:59"), active: false },
+      { id: 4, name: "4-я четверть", endDate: new Date("2027-05-25T23:59:59"), active: false }
+    ];
+
     function App() {
       const [now, setNow] = useState(new Date());
 
@@ -140,7 +147,36 @@
         }
       });
 
-      // Подсчет выполненных задач по категориям для смены тем
+      // Расчет очков опыта (XP) на основе выполненных задач
+      const rpgStats = useMemo(() => {
+        let mathXP = 0;
+        let pythonXP = 0;
+        let englishXP = 0;
+        let schoolXP = 0;
+
+        Object.keys(completedTasks).forEach(key => {
+          if (completedTasks[key]) {
+            if (key.includes('mwf_8') || key.includes('sun_1')) mathXP += 50;
+            if (key.includes('python') || key.includes('mwf_6') || key.includes('tt_7') || key.includes('sat_5')) pythonXP += 50;
+            if (key.includes('english') || key.includes('mwf_4') || key.includes('tt_1') || key.includes('tt_5') || key.includes('sat_1') || key.includes('sat_3')) englishXP += 50;
+            if (key.includes('school') || key.includes('mwf_2') || key.includes('tt_3')) schoolXP += 30;
+          }
+        });
+
+        const calcLevel = (xp) => {
+          const level = Math.floor(xp / 200) + 1;
+          const currentProgress = xp % 200;
+          return { level, currentProgress, max: 200 };
+        };
+
+        return {
+          math: { xp: mathXP, ...calcLevel(mathXP) },
+          python: { xp: pythonXP, ...calcLevel(pythonXP) },
+          english: { xp: englishXP, ...calcLevel(englishXP) },
+          school: { xp: schoolXP, ...calcLevel(schoolXP) }
+        };
+      }, [completedTasks]);
+
       const pythonCompletedCount = useMemo(() => {
         let count = 0;
         Object.keys(completedTasks).forEach(key => {
@@ -196,6 +232,14 @@
 
       const formattedTime = useMemo(() => {
         return now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      }, [now]);
+
+      // Расчет дней до конца первой четверти
+      const daysLeftQ1 = useMemo(() => {
+        const target = QUARTERS[0].endDate;
+        const diffTime = target - now;
+        if (diffTime <= 0) return 0;
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       }, [now]);
 
       const toggleTask = (taskId) => {
@@ -348,7 +392,15 @@
                   activeTab === 'github' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <span>💻</span> GitHub & Python Проекты
+                <span>💻</span> GitHub & Python
+              </button>
+              <button
+                onClick={() => setActiveTab('events')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
+                  activeTab === 'events' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <span>🎯</span> События & Характеристики
               </button>
             </div>
           </header>
@@ -417,7 +469,7 @@
                     </div>
                     <p className="text-xs text-slate-400 mt-1">
                       {isTodaySelected 
-                        ? 'Отмечай выполненные задачи галочками — темы Python и Английского будут меняться автоматически!' 
+                        ? 'Отмечай выполненные задачи — зарабатывай XP и качай характеристики!' 
                         : 'Вы просматриваете расписание другого дня. Нажимать галочки можно только на сегодня.'}
                     </p>
                   </div>
@@ -444,7 +496,6 @@
                     const isActive = isTodaySelected && activeBlock?.id === task.id;
                     const categoryStyle = CATEGORIES[task.category] || CATEGORIES.rest;
 
-                    // Подставляем динамическую тему взамен заглушки
                     let taskDesc = task.desc;
                     if (task.desc === 'DYNAMIC_PYTHON') {
                       taskDesc = `Текущая тема: ${currentPythonTopic}`;
@@ -487,11 +538,6 @@
                             {isActive && (
                               <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-500 text-slate-950 font-bold uppercase tracking-wider animate-pulse">
                                 Сейчас
-                              </span>
-                            )}
-                            {!isTodaySelected && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700/50">
-                                Только для чтения
                               </span>
                             )}
                           </div>
@@ -582,6 +628,169 @@
                       </button>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* НОВЫЙ РАЗДЕЛ: СОБЫТИЯ И RPG ХАРАКТЕРИСТИКИ */}
+            {activeTab === 'events' && (
+              <div className="space-y-6">
+                {/* 1. Учебный Календарь Четвертей */}
+                <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-slate-100 text-base flex items-center gap-2">
+                      <span>⏳</span> Учебный Календарь (10 Класс)
+                    </h3>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-mono">
+                      2026 – 2027
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    {/* 1 Четверть - Активная с обратным отчетом */}
+                    <div className="p-4 rounded-xl border bg-gradient-to-br from-cyan-950/40 to-slate-900 border-cyan-500/50 relative overflow-hidden">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-sm text-cyan-300">1-я Четверть</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500 text-slate-950 font-bold uppercase animate-pulse">
+                          Идёт сейчас
+                        </span>
+                      </div>
+                      <div className="text-2xl font-black font-mono text-white mt-1">
+                        {daysLeftQ1 > 0 ? `${daysLeftQ1} дней` : 'Завершена'}
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1">До окончания первой четверти и каникул</p>
+                    </div>
+
+                    {/* 2 Четверть - Без таймера */}
+                    <div className="p-4 rounded-xl border bg-slate-900/50 border-slate-800/80 opacity-70">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-sm text-slate-300">2-я Четверть</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700">
+                          🔒 Ожидает начала
+                        </span>
+                      </div>
+                      <div className="text-sm font-medium text-slate-500 mt-2">Таймер запустится после 1-й четверти</div>
+                      <p className="text-[11px] text-slate-500 mt-1">Ноябрь – Декабрь 2026</p>
+                    </div>
+
+                    {/* 3 Четверть */}
+                    <div className="p-4 rounded-xl border bg-slate-900/50 border-slate-800/80 opacity-70">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-sm text-slate-300">3-я Четверть</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700">
+                          🔒 Ожидает начала
+                        </span>
+                      </div>
+                      <div className="text-sm font-medium text-slate-500 mt-2">Таймер запустится в январе</div>
+                      <p className="text-[11px] text-slate-500 mt-1">Январь – Март 2027</p>
+                    </div>
+
+                    {/* 4 Четверть */}
+                    <div className="p-4 rounded-xl border bg-slate-900/50 border-slate-800/80 opacity-70">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-sm text-slate-300">4-я Четверть</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700">
+                          🔒 Ожидает начала
+                        </span>
+                      </div>
+                      <div className="text-sm font-medium text-slate-500 mt-2">Финальный рывок 10 класса</div>
+                      <p className="text-[11px] text-slate-500 mt-1">Апрель – Май 2027</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Игровая Система Характеристик Персонажа (RPG Status) */}
+                <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-5">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div>
+                      <h3 className="font-extrabold text-slate-100 text-base flex items-center gap-2">
+                        <span>🎮</span> Характеристики Прокачки (Masato Status)
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-0.5">Очки опыта (XP) и уровень растут при отметке задач</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Математика */}
+                    <div className="p-4 bg-slate-950/60 border border-emerald-500/30 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-emerald-400 flex items-center gap-1.5">
+                          <span>📐</span> Высшая Математика
+                        </span>
+                        <span className="font-mono text-slate-300 font-bold">Уровень {rpgStats.math.level}</span>
+                      </div>
+                      <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-emerald-500 h-full transition-all duration-500" 
+                          style={{ width: `${(rpgStats.math.currentProgress / rpgStats.math.max) * 100}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[11px] text-slate-400 font-mono">
+                        <span>Всего: {rpgStats.math.xp} XP</span>
+                        <span>{rpgStats.math.currentProgress} / {rpgStats.math.max} XP</span>
+                      </div>
+                    </div>
+
+                    {/* Python / Алгоритмы */}
+                    <div className="p-4 bg-slate-950/60 border border-indigo-500/30 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-indigo-400 flex items-center gap-1.5">
+                          <span>💻</span> Python & Алгоритмы
+                        </span>
+                        <span className="font-mono text-slate-300 font-bold">Уровень {rpgStats.python.level}</span>
+                      </div>
+                      <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-indigo-500 h-full transition-all duration-500" 
+                          style={{ width: `${(rpgStats.python.currentProgress / rpgStats.python.max) * 100}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[11px] text-slate-400 font-mono">
+                        <span>Всего: {rpgStats.python.xp} XP</span>
+                        <span>{rpgStats.python.currentProgress} / {rpgStats.python.max} XP</span>
+                      </div>
+                    </div>
+
+                    {/* Английский Язык */}
+                    <div className="p-4 bg-slate-950/60 border border-cyan-500/30 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-cyan-400 flex items-center gap-1.5">
+                          <span>🗣️</span> Английский (IELTS B2)
+                        </span>
+                        <span className="font-mono text-slate-300 font-bold">Уровень {rpgStats.english.level}</span>
+                      </div>
+                      <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-cyan-500 h-full transition-all duration-500" 
+                          style={{ width: `${(rpgStats.english.currentProgress / rpgStats.english.max) * 100}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[11px] text-slate-400 font-mono">
+                        <span>Всего: {rpgStats.english.xp} XP</span>
+                        <span>{rpgStats.english.currentProgress} / {rpgStats.english.max} XP</span>
+                      </div>
+                    </div>
+
+                    {/* Школьная Дисциплина */}
+                    <div className="p-4 bg-slate-950/60 border border-amber-500/30 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-amber-400 flex items-center gap-1.5">
+                          <span>📚</span> Школьный Аттестат (GPA)
+                        </span>
+                        <span className="font-mono text-slate-300 font-bold">Уровень {rpgStats.school.level}</span>
+                      </div>
+                      <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-amber-500 h-full transition-all duration-500" 
+                          style={{ width: `${(rpgStats.school.currentProgress / rpgStats.school.max) * 100}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[11px] text-slate-400 font-mono">
+                        <span>Всего: {rpgStats.school.xp} XP</span>
+                        <span>{rpgStats.school.currentProgress} / {rpgStats.school.max} XP</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
