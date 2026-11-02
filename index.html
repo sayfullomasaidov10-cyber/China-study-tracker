@@ -112,13 +112,21 @@
       rest: { label: 'Отдых & Ужин', color: 'bg-slate-700/30 text-slate-400 border-slate-700/40' },
     };
 
-    // Даты учебных четвертей 10 класса
     const QUARTERS = [
       { id: 1, name: "1-я четверть", endDate: new Date("2026-11-01T23:59:59"), active: true },
       { id: 2, name: "2-я четверть", endDate: new Date("2026-12-31T23:59:59"), active: false },
       { id: 3, name: "3-я четверть", endDate: new Date("2027-03-20T23:59:59"), active: false },
       { id: 4, name: "4-я четверть", endDate: new Date("2027-05-25T23:59:59"), active: false }
     ];
+
+    // Функция получения номера недели в году
+    function getWeekNumber(date) {
+      const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+      return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    }
 
     function App() {
       const [now, setNow] = useState(new Date());
@@ -130,6 +138,8 @@
       };
 
       const realTodayId = getCurrentDayId(now);
+      const currentWeekNum = useMemo(() => getWeekNumber(now), [now]);
+      const prevWeekNum = currentWeekNum - 1;
 
       const [activeTab, setActiveTab] = useState('schedule');
       const [selectedDay, setSelectedDay] = useState(realTodayId);
@@ -138,24 +148,62 @@
         setSelectedDay(realTodayId);
       }, [realTodayId]);
 
-      const [completedTasks, setCompletedTasks] = useState(() => {
+      // Хранилище задач по неделям: { [weekNumber]: { "mon_mwf_1": true, ... } }
+      const [weeklyTasks, setWeeklyTasks] = useState(() => {
         try {
-          const saved = localStorage.getItem('masato_tracker_completed');
+          const saved = localStorage.getItem('masato_tracker_weekly_tasks');
           return saved ? JSON.parse(saved) : {};
         } catch {
           return {};
         }
       });
 
-      // Расчет очков опыта (XP) на основе выполненных задач
+      useEffect(() => {
+        localStorage.setItem('masato_tracker_weekly_tasks', JSON.stringify(weeklyTasks));
+      }, [weeklyTasks]);
+
+      // Задачи текущей и прошлой недели
+      const currentWeekData = weeklyTasks[currentWeekNum] || {};
+      const prevWeekData = weeklyTasks[prevWeekNum] || {};
+
+      // Расчет статистики для любой недели
+      const calculateStatsForWeek = (weekData) => {
+        let totalTasks = 0;
+        let completedCount = 0;
+        const categoryStats = { math: 0, english: 0, python: 0, school: 0 };
+        const categoryTotals = { math: 0, english: 0, python: 0, school: 0 };
+
+        DAYS.forEach(day => {
+          const schedule = SCHEDULES[day.id] || [];
+          schedule.forEach(task => {
+            if (task.category !== 'rest') {
+              totalTasks++;
+              if (categoryTotals[task.category] !== undefined) categoryTotals[task.category]++;
+              const key = `${day.id}_${task.id}`;
+              if (weekData[key]) {
+                completedCount++;
+                if (categoryStats[task.category] !== undefined) categoryStats[task.category]++;
+              }
+            }
+          });
+        });
+
+        const overallPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+        return { overallPercent, completedCount, totalTasks, categoryStats };
+      };
+
+      const currentStats = useMemo(() => calculateStatsForWeek(currentWeekData), [currentWeekData]);
+      const prevStats = useMemo(() => calculateStatsForWeek(prevWeekData), [prevWeekData]);
+
+      // RPG Статы на основе текущей недели
       const rpgStats = useMemo(() => {
         let mathXP = 0;
         let pythonXP = 0;
         let englishXP = 0;
         let schoolXP = 0;
 
-        Object.keys(completedTasks).forEach(key => {
-          if (completedTasks[key]) {
+        Object.keys(currentWeekData).forEach(key => {
+          if (currentWeekData[key]) {
             if (key.includes('mwf_8') || key.includes('sun_1')) mathXP += 50;
             if (key.includes('python') || key.includes('mwf_6') || key.includes('tt_7') || key.includes('sat_5')) pythonXP += 50;
             if (key.includes('english') || key.includes('mwf_4') || key.includes('tt_1') || key.includes('tt_5') || key.includes('sat_1') || key.includes('sat_3')) englishXP += 50;
@@ -175,23 +223,23 @@
           english: { xp: englishXP, ...calcLevel(englishXP) },
           school: { xp: schoolXP, ...calcLevel(schoolXP) }
         };
-      }, [completedTasks]);
+      }, [currentWeekData]);
 
       const pythonCompletedCount = useMemo(() => {
         let count = 0;
-        Object.keys(completedTasks).forEach(key => {
-          if (completedTasks[key] && key.includes('python')) count++;
+        Object.keys(currentWeekData).forEach(key => {
+          if (currentWeekData[key] && key.includes('python')) count++;
         });
         return count;
-      }, [completedTasks]);
+      }, [currentWeekData]);
 
       const englishCompletedCount = useMemo(() => {
         let count = 0;
-        Object.keys(completedTasks).forEach(key => {
-          if (completedTasks[key] && key.includes('english')) count++;
+        Object.keys(currentWeekData).forEach(key => {
+          if (currentWeekData[key] && key.includes('english')) count++;
         });
         return count;
-      }, [completedTasks]);
+      }, [currentWeekData]);
 
       const currentPythonTopic = PYTHON_TOPICS[pythonCompletedCount % PYTHON_TOPICS.length];
       const currentEnglishTopic = ENGLISH_TOPICS[englishCompletedCount % ENGLISH_TOPICS.length];
@@ -217,10 +265,6 @@
       }, []);
 
       useEffect(() => {
-        localStorage.setItem('masato_tracker_completed', JSON.stringify(completedTasks));
-      }, [completedTasks]);
-
-      useEffect(() => {
         localStorage.setItem('masato_tracker_projects', JSON.stringify(projects));
       }, [projects]);
 
@@ -234,7 +278,6 @@
         return now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       }, [now]);
 
-      // Расчет дней до конца первой четверти
       const daysLeftQ1 = useMemo(() => {
         const target = QUARTERS[0].endDate;
         const diffTime = target - now;
@@ -242,10 +285,20 @@
         return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       }, [now]);
 
+      // Переключение галочки для текущей недели
       const toggleTask = (taskId) => {
         if (selectedDay !== realTodayId) return;
         const key = `${selectedDay}_${taskId}`;
-        setCompletedTasks(prev => ({ ...prev, [key]: !prev[key] }));
+        setWeeklyTasks(prev => {
+          const weekData = prev[currentWeekNum] || {};
+          return {
+            ...prev,
+            [currentWeekNum]: {
+              ...weekData,
+              [key]: !weekData[key]
+            }
+          };
+        });
       };
 
       const parseTime = (timeStr) => {
@@ -276,31 +329,6 @@
         return hours > 0 ? `${hours} ч ${mins} мин` : `${mins} мин`;
       }, [activeBlock, currentMinutes]);
 
-      const stats = useMemo(() => {
-        let totalTasks = 0;
-        let completedCount = 0;
-        const categoryStats = { math: 0, english: 0, python: 0, school: 0 };
-        const categoryTotals = { math: 0, english: 0, python: 0, school: 0 };
-
-        DAYS.forEach(day => {
-          const schedule = SCHEDULES[day.id] || [];
-          schedule.forEach(task => {
-            if (task.category !== 'rest') {
-              totalTasks++;
-              if (categoryTotals[task.category] !== undefined) categoryTotals[task.category]++;
-              const key = `${day.id}_${task.id}`;
-              if (completedTasks[key]) {
-                completedCount++;
-                if (categoryStats[task.category] !== undefined) categoryStats[task.category]++;
-              }
-            }
-          });
-        });
-
-        const overallPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
-        return { overallPercent, completedCount, totalTasks, categoryStats, categoryTotals };
-      }, [completedTasks]);
-
       const handleAddProject = (e) => {
         e.preventDefault();
         if (!newProjectTitle.trim()) return;
@@ -327,7 +355,7 @@
             <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-2 text-cyan-300 font-medium">
                 <span>📅</span>
-                <span className="font-semibold">{formattedDate}</span>
+                <span className="font-semibold">{formattedDate} (Неделя #{currentWeekNum})</span>
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 px-3 py-1 rounded-full text-slate-300 font-mono font-bold tracking-wider">
@@ -355,15 +383,15 @@
                       10 класс
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400">Персональный планер & трекер ежедневной подготовки</p>
+                  <p className="text-xs text-slate-400">Персональный планер & еженедельный трекер</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700 px-3 py-1.5 rounded-lg text-sm">
                   <span>🔥</span>
-                  <span className="text-slate-300 font-medium text-xs">Прогресс:</span>
-                  <span className="text-emerald-400 font-bold font-mono">{stats.overallPercent}%</span>
+                  <span className="text-slate-300 font-medium text-xs">Эта неделя:</span>
+                  <span className="text-emerald-400 font-bold font-mono">{currentStats.overallPercent}%</span>
                 </div>
               </div>
             </div>
@@ -384,7 +412,7 @@
                   activeTab === 'analytics' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <span>📊</span> Аналитика за Неделю
+                <span>📊</span> Аналитика (Текущая & Прошлая)
               </button>
               <button
                 onClick={() => setActiveTab('github')}
@@ -459,18 +487,18 @@
                       {isTodaySelected ? (
                         <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[11px] px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                          Сегодня (Активен для отметки)
+                          Сегодня (Неделя #{currentWeekNum})
                         </span>
                       ) : (
                         <span className="bg-slate-800 text-slate-400 border border-slate-700 text-[11px] px-2.5 py-0.5 rounded-full font-medium">
-                          🔒 Просмотр (Только для чтения)
+                          🔒 Просмотр
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-slate-400 mt-1">
                       {isTodaySelected 
-                        ? 'Отмечай выполненные задачи — зарабатывай XP и качай характеристики!' 
-                        : 'Вы просматриваете расписание другого дня. Нажимать галочки можно только на сегодня.'}
+                        ? 'Отмечай задачи. Каждое воскресенье в полночь чекбоксы автоматически обновляются для новой недели!' 
+                        : 'Просмотр расписания выбранного дня.'}
                     </p>
                   </div>
 
@@ -484,15 +512,15 @@
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/40 px-3.5 py-2 rounded-xl border border-slate-800">
-                      {isTodaySelected ? 'Сейчас нет активных блоков по расписанию' : 'Режим просмотра расписания'}
+                      {isTodaySelected ? 'Сейчас нет активных блоков' : 'Режим просмотра'}
                     </div>
                   )}
                 </div>
 
                 {/* Task Checklist Items */}
                 <div className="space-y-3">
-                  {(SCHEDULES[selectedDay] || []).map((task) => {
-                    const isCompleted = !!completedTasks[`${selectedDay}_${task.id}`];
+                  {(SCHEDULES[selectedDay] || []).log ? null : (SCHEDULES[selectedDay] || []).map((task) => {
+                    const isCompleted = !!currentWeekData[`${selectedDay}_${task.id}`];
                     const isActive = isTodaySelected && activeBlock?.id === task.id;
                     const categoryStyle = CATEGORIES[task.category] || CATEGORIES.rest;
 
@@ -556,28 +584,48 @@
               </div>
             )}
 
+            {/* АНАЛИТИКА: ТЕКУЩАЯ И ПРОШЛАЯ НЕДЕЛЯ */}
             {activeTab === 'analytics' && (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl">
-                    <div className="text-slate-400 text-xs mb-2">Общий прогресс недели</div>
-                    <div className="text-3xl font-extrabold text-slate-100 font-mono">{stats.overallPercent}%</div>
-                    <div className="w-full bg-slate-800 h-2 rounded-full mt-3 overflow-hidden">
-                      <div className="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full transition-all duration-500" style={{ width: `${stats.overallPercent}%` }} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Текущая неделя */}
+                  <div className="p-6 bg-slate-900 border border-cyan-500/30 rounded-2xl relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Текущая неделя (#{currentWeekNum})</span>
+                      <span className="text-xs px-2.5 py-0.5 bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 rounded-full font-mono">Активна</span>
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-2">Выполнено {stats.completedCount} из {stats.totalTasks} блоков</p>
+                    <div className="text-4xl font-black text-slate-100 font-mono">{currentStats.overallPercent}%</div>
+                    <div className="w-full bg-slate-800 h-2.5 rounded-full mt-3 overflow-hidden">
+                      <div className="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full transition-all duration-500" style={{ width: `${currentStats.overallPercent}%` }} />
+                    </div>
+                    <p className="text-xs text-slate-400 mt-3">Выполнено блоков: <span className="text-white font-bold">{currentStats.completedCount}</span> из {currentStats.totalTasks}</p>
                   </div>
 
+                  {/* Прошлая неделя */}
+                  <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl opacity-90">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Прошлая неделя (#{prevWeekNum})</span>
+                      <span className="text-xs px-2.5 py-0.5 bg-slate-800 text-slate-400 border border-slate-700 rounded-full font-mono">Завершена</span>
+                    </div>
+                    <div className="text-4xl font-black text-slate-300 font-mono">{prevStats.overallPercent}%</div>
+                    <div className="w-full bg-slate-800 h-2.5 rounded-full mt-3 overflow-hidden">
+                      <div className="bg-slate-600 h-full transition-all duration-500" style={{ width: `${prevStats.overallPercent}%` }} />
+                    </div>
+                    <p className="text-xs text-slate-400 mt-3">Выполнено блоков: <span className="text-white font-bold">{prevStats.completedCount}</span> из {prevStats.totalTasks}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl">
-                    <div className="text-slate-400 text-xs mb-2">Текущая тема Python</div>
+                    <div className="text-slate-400 text-xs mb-2">Актуальная тема Python (Текущая неделя)</div>
                     <div className="text-sm font-bold text-indigo-400 mt-1">{currentPythonTopic}</div>
-                    <p className="text-[11px] text-slate-400 mt-2">Автоматически сменится после отметки урока.</p>
+                    <p className="text-[11px] text-slate-400 mt-2">Продвигайтесь по списку задач, чтобы осваивать новые темы.</p>
                   </div>
 
                   <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl">
-                    <div className="text-slate-400 text-xs mb-2">Текущая тема Английского</div>
+                    <div className="text-slate-400 text-xs mb-2">Актуальная тема Английского (Текущая неделя)</div>
                     <div className="text-sm font-bold text-cyan-400 mt-1">{currentEnglishTopic}</div>
-                    <p className="text-[11px] text-slate-400 mt-2">Обновляется по мере вашего прогресса.</p>
+                    <p className="text-[11px] text-slate-400 mt-2">Обновляется автоматически по мере выполнения блоков.</p>
                   </div>
                 </div>
               </div>
@@ -632,10 +680,8 @@
               </div>
             )}
 
-            {/* НОВЫЙ РАЗДЕЛ: СОБЫТИЯ И RPG ХАРАКТЕРИСТИКИ */}
             {activeTab === 'events' && (
               <div className="space-y-6">
-                {/* 1. Учебный Календарь Четвертей */}
                 <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-slate-100 text-base flex items-center gap-2">
@@ -647,7 +693,6 @@
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                    {/* 1 Четверть - Активная с обратным отчетом */}
                     <div className="p-4 rounded-xl border bg-gradient-to-br from-cyan-950/40 to-slate-900 border-cyan-500/50 relative overflow-hidden">
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-bold text-sm text-cyan-300">1-я Четверть</span>
@@ -661,7 +706,6 @@
                       <p className="text-[11px] text-slate-400 mt-1">До окончания первой четверти и каникул</p>
                     </div>
 
-                    {/* 2 Четверть - Без таймера */}
                     <div className="p-4 rounded-xl border bg-slate-900/50 border-slate-800/80 opacity-70">
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-bold text-sm text-slate-300">2-я Четверть</span>
@@ -673,7 +717,6 @@
                       <p className="text-[11px] text-slate-500 mt-1">Ноябрь – Декабрь 2026</p>
                     </div>
 
-                    {/* 3 Четверть */}
                     <div className="p-4 rounded-xl border bg-slate-900/50 border-slate-800/80 opacity-70">
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-bold text-sm text-slate-300">3-я Четверть</span>
@@ -685,7 +728,6 @@
                       <p className="text-[11px] text-slate-500 mt-1">Январь – Март 2027</p>
                     </div>
 
-                    {/* 4 Четверть */}
                     <div className="p-4 rounded-xl border bg-slate-900/50 border-slate-800/80 opacity-70">
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-bold text-sm text-slate-300">4-я Четверть</span>
@@ -699,19 +741,17 @@
                   </div>
                 </div>
 
-                {/* 2. Игровая Система Характеристик Персонажа (RPG Status) */}
                 <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-5">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                     <div>
                       <h3 className="font-extrabold text-slate-100 text-base flex items-center gap-2">
                         <span>🎮</span> Характеристики Прокачки (Masato Status)
                       </h3>
-                      <p className="text-xs text-slate-400 mt-0.5">Очки опыта (XP) и уровень растут при отметке задач</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Очки опыта (XP) и уровень за текущую неделю</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Математика */}
                     <div className="p-4 bg-slate-950/60 border border-emerald-500/30 rounded-xl space-y-2">
                       <div className="flex justify-between items-center text-xs">
                         <span className="font-bold text-emerald-400 flex items-center gap-1.5">
@@ -731,7 +771,6 @@
                       </div>
                     </div>
 
-                    {/* Python / Алгоритмы */}
                     <div className="p-4 bg-slate-950/60 border border-indigo-500/30 rounded-xl space-y-2">
                       <div className="flex justify-between items-center text-xs">
                         <span className="font-bold text-indigo-400 flex items-center gap-1.5">
@@ -751,7 +790,6 @@
                       </div>
                     </div>
 
-                    {/* Английский Язык */}
                     <div className="p-4 bg-slate-950/60 border border-cyan-500/30 rounded-xl space-y-2">
                       <div className="flex justify-between items-center text-xs">
                         <span className="font-bold text-cyan-400 flex items-center gap-1.5">
@@ -771,8 +809,7 @@
                       </div>
                     </div>
 
-                    {/* Школьная Дисциплина */}
-                    <div className="p-4 bg-slate-950/60 border border-amber-500/30 rounded-xl space-y-2">
+                    <div className="p-4 bg-slate-950/60 border border-amber-500/30 воссоздании rounded-xl space-y-2">
                       <div className="flex justify-between items-center text-xs">
                         <span className="font-bold text-amber-400 flex items-center gap-1.5">
                           <span>📚</span> Школьный Аттестат (GPA)
