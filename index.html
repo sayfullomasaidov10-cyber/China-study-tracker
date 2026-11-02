@@ -28,11 +28,11 @@
     const { useState, useEffect, useMemo } = React;
 
     const DAYS = [
-      { id: 'mon', name: 'Понедельник', short: 'ПН', full: 'Понедельник (Математика + Python)' },
+      { id: 'mon', name: 'Понедельник', short: 'ПН', full: 'Понедельник (Китайский + Математика + Python)' },
       { id: 'tue', name: 'Вторник', short: 'ВТ', full: 'Вторник (Курс Английского)' },
-      { id: 'wed', name: 'Среда', short: 'СР', full: 'Среда (Математика + Python)' },
+      { id: 'wed', name: 'Среда', short: 'СР', full: 'Среда (Китайский + Математика + Python)' },
       { id: 'thu', name: 'Четверг', short: 'ЧТ', full: 'Четверг (Курс Английского)' },
-      { id: 'fri', name: 'Пятница', short: 'ПТ', full: 'Пятница (Математика + Python)' },
+      { id: 'fri', name: 'Пятница', short: 'ПТ', full: 'Пятница (Китайский + Математика + Python)' },
       { id: 'sat', name: 'Суббота', short: 'СБ', full: 'Суббота (Английский + GitHub)' },
       { id: 'sun', name: 'Воскресенье', short: 'ВС', full: 'Воскресенье (Перезагрузка & Анализ)' },
     ];
@@ -56,9 +56,19 @@
       "Технический словарный запас (Computer Science)"
     ];
 
+    const CHINESE_TOPICS = [
+      "Иероглифы HSK 3-4 (ключи и порядок черт)",
+      "Грамматические конструкции (把, 被, 比)",
+      "Аудирование и восприятие речи на слух",
+      "Разговорные фразы для учебы в Китае",
+      "Чтение текстов без пиньиня",
+      "Письмо: мини-эссе на китайском"
+    ];
+
     const MON_WED_FRI_SCHEDULE = [
-      { id: 'mwf_1', time: '16:00 - 16:30', start: '16:00', end: '16:30', title: 'Отдых после школы, перекус', category: 'rest', desc: 'Перезагрузка после школы перед учебой' },
-      { id: 'mwf_2', time: '16:30 - 17:30', start: '16:30', end: '17:30', title: 'Школьные ДЗ (Математика/Физика)', category: 'school', desc: 'Выполнение текущей домашней работы' },
+      { id: 'mwf_china', time: '15:00 - 16:30', start: '15:00', end: '16:30', title: 'Китайский язык (Подготовка к гранту CSC)', category: 'chinese', desc: 'DYNAMIC_CHINESE', isDynamic: true },
+      { id: 'mwf_1', time: '16:30 - 17:00', start: '16:30', end: '17:00', title: 'Отдых после китайского, перекус', category: 'rest', desc: 'Перезагрузка перед школьными ДЗ' },
+      { id: 'mwf_2', time: '17:00 - 17:30', start: '17:00', end: '17:30', title: 'Школьные ДЗ (Математика/Физика)', category: 'school', desc: 'Выполнение текущей домашней работы' },
       { id: 'mwf_3', time: '17:30 - 17:45', start: '17:30', end: '17:45', title: 'Перерыв 15 минут', category: 'rest', desc: 'Разминка, выпить воды' },
       { id: 'mwf_4', time: '17:45 - 18:30', start: '17:45', end: '18:30', title: 'Английский', category: 'english', desc: 'DYNAMIC_ENGLISH', isDynamic: true },
       { id: 'mwf_5', time: '18:30 - 19:30', start: '18:30', end: '19:30', title: 'Ужин и отдых', category: 'rest', desc: 'Прием пищи и семейное время' },
@@ -107,6 +117,7 @@
     const CATEGORIES = {
       math: { label: 'Математика', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
       english: { label: 'Английский', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
+      chinese: { label: 'Китайский (HSK)', color: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
       python: { label: 'Python / IT', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' },
       school: { label: 'Школа ДЗ', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
       rest: { label: 'Отдых & Ужин', color: 'bg-slate-700/30 text-slate-400 border-slate-700/40' },
@@ -119,7 +130,6 @@
       { id: 4, name: "4-я четверть", endDate: new Date("2027-05-25T23:59:59"), active: false }
     ];
 
-    // Функция получения номера недели в году
     function getWeekNumber(date) {
       const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
       const dayNum = d.getUTCDay() || 7;
@@ -148,7 +158,6 @@
         setSelectedDay(realTodayId);
       }, [realTodayId]);
 
-      // Хранилище задач по неделям: { [weekNumber]: { "mon_mwf_1": true, ... } }
       const [weeklyTasks, setWeeklyTasks] = useState(() => {
         try {
           const saved = localStorage.getItem('masato_tracker_weekly_tasks');
@@ -162,44 +171,38 @@
         localStorage.setItem('masato_tracker_weekly_tasks', JSON.stringify(weeklyTasks));
       }, [weeklyTasks]);
 
-      // Задачи текущей и прошлой недели
       const currentWeekData = weeklyTasks[currentWeekNum] || {};
       const prevWeekData = weeklyTasks[prevWeekNum] || {};
 
-      // Расчет статистики для любой недели
       const calculateStatsForWeek = (weekData) => {
         let totalTasks = 0;
         let completedCount = 0;
-        const categoryStats = { math: 0, english: 0, python: 0, school: 0 };
-        const categoryTotals = { math: 0, english: 0, python: 0, school: 0 };
 
         DAYS.forEach(day => {
           const schedule = SCHEDULES[day.id] || [];
           schedule.forEach(task => {
             if (task.category !== 'rest') {
               totalTasks++;
-              if (categoryTotals[task.category] !== undefined) categoryTotals[task.category]++;
               const key = `${day.id}_${task.id}`;
               if (weekData[key]) {
                 completedCount++;
-                if (categoryStats[task.category] !== undefined) categoryStats[task.category]++;
               }
             }
           });
         });
 
         const overallPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
-        return { overallPercent, completedCount, totalTasks, categoryStats };
+        return { overallPercent, completedCount, totalTasks };
       };
 
       const currentStats = useMemo(() => calculateStatsForWeek(currentWeekData), [currentWeekData]);
       const prevStats = useMemo(() => calculateStatsForWeek(prevWeekData), [prevWeekData]);
 
-      // RPG Статы на основе текущей недели
       const rpgStats = useMemo(() => {
         let mathXP = 0;
         let pythonXP = 0;
         let englishXP = 0;
+        let chineseXP = 0;
         let schoolXP = 0;
 
         Object.keys(currentWeekData).forEach(key => {
@@ -207,6 +210,7 @@
             if (key.includes('mwf_8') || key.includes('sun_1')) mathXP += 50;
             if (key.includes('python') || key.includes('mwf_6') || key.includes('tt_7') || key.includes('sat_5')) pythonXP += 50;
             if (key.includes('english') || key.includes('mwf_4') || key.includes('tt_1') || key.includes('tt_5') || key.includes('sat_1') || key.includes('sat_3')) englishXP += 50;
+            if (key.includes('chinese')) chineseXP += 50;
             if (key.includes('school') || key.includes('mwf_2') || key.includes('tt_3')) schoolXP += 30;
           }
         });
@@ -221,6 +225,7 @@
           math: { xp: mathXP, ...calcLevel(mathXP) },
           python: { xp: pythonXP, ...calcLevel(pythonXP) },
           english: { xp: englishXP, ...calcLevel(englishXP) },
+          chinese: { xp: chineseXP, ...calcLevel(chineseXP) },
           school: { xp: schoolXP, ...calcLevel(schoolXP) }
         };
       }, [currentWeekData]);
@@ -241,8 +246,17 @@
         return count;
       }, [currentWeekData]);
 
+      const chineseCompletedCount = useMemo(() => {
+        let count = 0;
+        Object.keys(currentWeekData).forEach(key => {
+          if (currentWeekData[key] && key.includes('chinese')) count++;
+        });
+        return count;
+      }, [currentWeekData]);
+
       const currentPythonTopic = PYTHON_TOPICS[pythonCompletedCount % PYTHON_TOPICS.length];
       const currentEnglishTopic = ENGLISH_TOPICS[englishCompletedCount % ENGLISH_TOPICS.length];
+      const currentChineseTopic = CHINESE_TOPICS[chineseCompletedCount % CHINESE_TOPICS.length];
 
       const [projects, setProjects] = useState(() => {
         try {
@@ -285,7 +299,6 @@
         return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       }, [now]);
 
-      // Переключение галочки для текущей недели
       const toggleTask = (taskId) => {
         if (selectedDay !== realTodayId) return;
         const key = `${selectedDay}_${taskId}`;
@@ -519,7 +532,7 @@
 
                 {/* Task Checklist Items */}
                 <div className="space-y-3">
-                  {(SCHEDULES[selectedDay] || []).log ? null : (SCHEDULES[selectedDay] || []).map((task) => {
+                  {(SCHEDULES[selectedDay] || []).map((task) => {
                     const isCompleted = !!currentWeekData[`${selectedDay}_${task.id}`];
                     const isActive = isTodaySelected && activeBlock?.id === task.id;
                     const categoryStyle = CATEGORIES[task.category] || CATEGORIES.rest;
@@ -529,6 +542,8 @@
                       taskDesc = `Текущая тема: ${currentPythonTopic}`;
                     } else if (task.desc === 'DYNAMIC_ENGLISH') {
                       taskDesc = `Текущая тема: ${currentEnglishTopic}`;
+                    } else if (task.desc === 'DYNAMIC_CHINESE') {
+                      taskDesc = `Текущая тема: ${currentChineseTopic}`;
                     }
 
                     return (
@@ -573,7 +588,7 @@
                           <h3 className={`text-sm font-semibold mt-1.5 ${isCompleted ? 'line-through text-slate-400' : 'text-slate-100'}`}>
                             {task.title}
                           </h3>
-                          <p className={`text-xs mt-0.5 ${task.isDynamic ? 'text-cyan-300 font-medium' : 'text-slate-400'}`}>
+                          <p className={`text-xs mt-0.5 ${task.isDynamic ? 'text-rose-300 font-medium' : 'text-slate-400'}`}>
                             {taskDesc}
                           </p>
                         </div>
@@ -584,11 +599,10 @@
               </div>
             )}
 
-            {/* АНАЛИТИКА: ТЕКУЩАЯ И ПРОШЛАЯ НЕДЕЛЯ */}
+            {/* АНАЛИТИКА */}
             {activeTab === 'analytics' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Текущая неделя */}
                   <div className="p-6 bg-slate-900 border border-cyan-500/30 rounded-2xl relative overflow-hidden">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Текущая неделя (#{currentWeekNum})</span>
@@ -601,7 +615,6 @@
                     <p className="text-xs text-slate-400 mt-3">Выполнено блоков: <span className="text-white font-bold">{currentStats.completedCount}</span> из {currentStats.totalTasks}</p>
                   </div>
 
-                  {/* Прошлая неделя */}
                   <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl opacity-90">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Прошлая неделя (#{prevWeekNum})</span>
@@ -615,17 +628,18 @@
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl">
-                    <div className="text-slate-400 text-xs mb-2">Актуальная тема Python (Текущая неделя)</div>
-                    <div className="text-sm font-bold text-indigo-400 mt-1">{currentPythonTopic}</div>
-                    <p className="text-[11px] text-slate-400 mt-2">Продвигайтесь по списку задач, чтобы осваивать новые темы.</p>
+                    <div className="text-slate-400 text-xs mb-2">Китайский язык</div>
+                    <div className="text-sm font-bold text-rose-400 mt-1">{currentChineseTopic}</div>
                   </div>
-
                   <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl">
-                    <div className="text-slate-400 text-xs mb-2">Актуальная тема Английского (Текущая неделя)</div>
+                    <div className="text-slate-400 text-xs mb-2">Python</div>
+                    <div className="text-sm font-bold text-indigo-400 mt-1">{currentPythonTopic}</div>
+                  </div>
+                  <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl">
+                    <div className="text-slate-400 text-xs mb-2">Английский</div>
                     <div className="text-sm font-bold text-cyan-400 mt-1">{currentEnglishTopic}</div>
-                    <p className="text-[11px] text-slate-400 mt-2">Обновляется автоматически по мере выполнения блоков.</p>
                   </div>
                 </div>
               </div>
@@ -752,6 +766,24 @@
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Китайский язык */}
+                    <div className="p-4 bg-slate-950/60 border border-rose-500/30 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-rose-400 flex items-center gap-1.5">
+                          <span>🇨🇳</span> Китайский (HSK)
+                        </span>
+                        <span className="font-mono text-slate-300 font-bold">Уровень {rpgStats.chinese.level}</span>
+                      </div>
+                      <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                        <div className="bg-rose-500 h-full transition-all duration-500" style={{ width: `${(rpgStats.chinese.currentProgress / rpgStats.chinese.max) * 100}%` }} />
+                      </div>
+                      <div className="flex justify-between text-[11px] text-slate-400 font-mono">
+                        <span>Всего: {rpgStats.chinese.xp} XP</span>
+                        <span>{rpgStats.chinese.currentProgress} / {rpgStats.chinese.max} XP</span>
+                      </div>
+                    </div>
+
+                    {/* Математика */}
                     <div className="p-4 bg-slate-950/60 border border-emerald-500/30 rounded-xl space-y-2">
                       <div className="flex justify-between items-center text-xs">
                         <span className="font-bold text-emerald-400 flex items-center gap-1.5">
@@ -760,10 +792,7 @@
                         <span className="font-mono text-slate-300 font-bold">Уровень {rpgStats.math.level}</span>
                       </div>
                       <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-emerald-500 h-full transition-all duration-500" 
-                          style={{ width: `${(rpgStats.math.currentProgress / rpgStats.math.max) * 100}%` }}
-                        />
+                        <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${(rpgStats.math.currentProgress / rpgStats.math.max) * 100}%` }} />
                       </div>
                       <div className="flex justify-between text-[11px] text-slate-400 font-mono">
                         <span>Всего: {rpgStats.math.xp} XP</span>
@@ -771,6 +800,7 @@
                       </div>
                     </div>
 
+                    {/* Python */}
                     <div className="p-4 bg-slate-950/60 border border-indigo-500/30 rounded-xl space-y-2">
                       <div className="flex justify-between items-center text-xs">
                         <span className="font-bold text-indigo-400 flex items-center gap-1.5">
@@ -779,10 +809,7 @@
                         <span className="font-mono text-slate-300 font-bold">Уровень {rpgStats.python.level}</span>
                       </div>
                       <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-indigo-500 h-full transition-all duration-500" 
-                          style={{ width: `${(rpgStats.python.currentProgress / rpgStats.python.max) * 100}%` }}
-                        />
+                        <div className="bg-indigo-500 h-full transition-all duration-500" style={{ width: `${(rpgStats.python.currentProgress / rpgStats.python.max) * 100}%` }} />
                       </div>
                       <div className="flex justify-between text-[11px] text-slate-400 font-mono">
                         <span>Всего: {rpgStats.python.xp} XP</span>
@@ -790,6 +817,7 @@
                       </div>
                     </div>
 
+                    {/* Английский */}
                     <div className="p-4 bg-slate-950/60 border border-cyan-500/30 rounded-xl space-y-2">
                       <div className="flex justify-between items-center text-xs">
                         <span className="font-bold text-cyan-400 flex items-center gap-1.5">
@@ -798,33 +826,11 @@
                         <span className="font-mono text-slate-300 font-bold">Уровень {rpgStats.english.level}</span>
                       </div>
                       <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-cyan-500 h-full transition-all duration-500" 
-                          style={{ width: `${(rpgStats.english.currentProgress / rpgStats.english.max) * 100}%` }}
-                        />
+                        <div className="bg-cyan-500 h-full transition-all duration-500" style={{ width: `${(rpgStats.english.currentProgress / rpgStats.english.max) * 100}%` }} />
                       </div>
                       <div className="flex justify-between text-[11px] text-slate-400 font-mono">
                         <span>Всего: {rpgStats.english.xp} XP</span>
                         <span>{rpgStats.english.currentProgress} / {rpgStats.english.max} XP</span>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-slate-950/60 border border-amber-500/30 воссоздании rounded-xl space-y-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-bold text-amber-400 flex items-center gap-1.5">
-                          <span>📚</span> Школьный Аттестат (GPA)
-                        </span>
-                        <span className="font-mono text-slate-300 font-bold">Уровень {rpgStats.school.level}</span>
-                      </div>
-                      <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-amber-500 h-full transition-all duration-500" 
-                          style={{ width: `${(rpgStats.school.currentProgress / rpgStats.school.max) * 100}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-[11px] text-slate-400 font-mono">
-                        <span>Всего: {rpgStats.school.xp} XP</span>
-                        <span>{rpgStats.school.currentProgress} / {rpgStats.school.max} XP</span>
                       </div>
                     </div>
                   </div>
