@@ -112,20 +112,74 @@
       rest: { label: 'Отдых & Ужин', color: 'bg-slate-700/30 text-slate-400 border-slate-700/40' },
     };
 
+    // Даты всех 4 четвертей 2026–2027 учебного года
     const QUARTERS = [
-      { id: 1, name: "1-я четверть", endDate: new Date("2026-11-01T23:59:59"), active: true },
-      { id: 2, name: "2-я четверть", endDate: new Date("2026-12-31T23:59:59"), active: false },
-      { id: 3, name: "3-я четверть", endDate: new Date("2027-03-20T23:59:59"), active: false },
-      { id: 4, name: "4-я четверть", endDate: new Date("2027-05-25T23:59:59"), active: false }
+      {
+        id: 1,
+        name: "1-я Четверть",
+        startDate: new Date("2026-09-01T00:00:00"),
+        endDate: new Date("2026-11-01T23:59:59"),
+        periodLabel: "Сентябрь – Октябрь 2026",
+        activeDesc: "До окончания первой четверти и осенних каникул",
+        upcomingDesc: "Старт учебного года"
+      },
+      {
+        id: 2,
+        name: "2-я Четверть",
+        startDate: new Date("2026-11-02T00:00:00"),
+        endDate: new Date("2026-12-31T23:59:59"),
+        periodLabel: "Ноябрь – Декабрь 2026",
+        activeDesc: "До окончания второй четверти и зимних каникул",
+        upcomingDesc: "Таймер запустится после 1-й четверти"
+      },
+      {
+        id: 3,
+        name: "3-я Четверть",
+        startDate: new Date("2027-01-11T00:00:00"),
+        endDate: new Date("2027-03-20T23:59:59"),
+        periodLabel: "Январь – Март 2027",
+        activeDesc: "До окончания самой длинной четверти и весенних каникул",
+        upcomingDesc: "Таймер запустится в январе"
+      },
+      {
+        id: 4,
+        name: "4-я Четверть",
+        startDate: new Date("2027-03-29T00:00:00"),
+        endDate: new Date("2027-05-25T23:59:59"),
+        periodLabel: "Апрель – Май 2027",
+        activeDesc: "Финальный рывок 10 класса до летних каникул",
+        upcomingDesc: "Финальный рывок 10 класса"
+      }
     ];
 
-    // Функция получения номера недели в году
     function getWeekNumber(date) {
       const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
       const dayNum = d.getUTCDay() || 7;
       d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-      const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
       return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    }
+
+    function getQuarterStatus(quarter, currentDate) {
+      const msPerDay = 1000 * 60 * 60 * 24;
+      if (currentDate > quarter.endDate) {
+        return { status: 'completed', daysLeft: 0 };
+      }
+      if (currentDate >= quarter.startDate && currentDate <= quarter.endDate) {
+        const daysLeft = Math.ceil((quarter.endDate - currentDate) / msPerDay);
+        return { status: 'active', daysLeft };
+      }
+      const daysUntilStart = Math.ceil((quarter.startDate - currentDate) / msPerDay);
+      return { status: 'upcoming', daysUntilStart };
+    }
+
+    function formatDaysRu(days) {
+      const mod100 = days % 100;
+      const mod10 = days % 10;
+      if (mod100 >= 11 && mod100 <= 14) return `${days} дней`;
+      if (mod10 === 1) return `${days} день`;
+      if (mod10 >= 2 && mod10 <= 4) return `${days} дня`;
+      return `${days} дней`;
     }
 
     function App() {
@@ -148,7 +202,6 @@
         setSelectedDay(realTodayId);
       }, [realTodayId]);
 
-      // Хранилище задач по неделям: { [weekNumber]: { "mon_mwf_1": true, ... } }
       const [weeklyTasks, setWeeklyTasks] = useState(() => {
         try {
           const saved = localStorage.getItem('masato_tracker_weekly_tasks');
@@ -162,11 +215,9 @@
         localStorage.setItem('masato_tracker_weekly_tasks', JSON.stringify(weeklyTasks));
       }, [weeklyTasks]);
 
-      // Задачи текущей и прошлой недели
       const currentWeekData = weeklyTasks[currentWeekNum] || {};
       const prevWeekData = weeklyTasks[prevWeekNum] || {};
 
-      // Расчет статистики для любой недели
       const calculateStatsForWeek = (weekData) => {
         let totalTasks = 0;
         let completedCount = 0;
@@ -195,7 +246,6 @@
       const currentStats = useMemo(() => calculateStatsForWeek(currentWeekData), [currentWeekData]);
       const prevStats = useMemo(() => calculateStatsForWeek(prevWeekData), [prevWeekData]);
 
-      // RPG Статы на основе текущей недели
       const rpgStats = useMemo(() => {
         let mathXP = 0;
         let pythonXP = 0;
@@ -278,14 +328,6 @@
         return now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       }, [now]);
 
-      const daysLeftQ1 = useMemo(() => {
-        const target = QUARTERS[0].endDate;
-        const diffTime = target - now;
-        if (diffTime <= 0) return 0;
-        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      }, [now]);
-
-      // Переключение галочки для текущей недели
       const toggleTask = (taskId) => {
         if (selectedDay !== realTodayId) return;
         const key = `${selectedDay}_${taskId}`;
@@ -519,7 +561,7 @@
 
                 {/* Task Checklist Items */}
                 <div className="space-y-3">
-                  {(SCHEDULES[selectedDay] || []).log ? null : (SCHEDULES[selectedDay] || []).map((task) => {
+                  {(SCHEDULES[selectedDay] || []).map((task) => {
                     const isCompleted = !!currentWeekData[`${selectedDay}_${task.id}`];
                     const isActive = isTodaySelected && activeBlock?.id === task.id;
                     const categoryStyle = CATEGORIES[task.category] || CATEGORIES.rest;
@@ -693,51 +735,56 @@
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                    <div className="p-4 rounded-xl border bg-gradient-to-br from-cyan-950/40 to-slate-900 border-cyan-500/50 relative overflow-hidden">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-sm text-cyan-300">1-я Четверть</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500 text-slate-950 font-bold uppercase animate-pulse">
-                          Идёт сейчас
-                        </span>
-                      </div>
-                      <div className="text-2xl font-black font-mono text-white mt-1">
-                        {daysLeftQ1 > 0 ? `${daysLeftQ1} дней` : 'Завершена'}
-                      </div>
-                      <p className="text-[11px] text-slate-400 mt-1">До окончания первой четверти и каникул</p>
-                    </div>
+                    {QUARTERS.map((q) => {
+                      const info = getQuarterStatus(q, now);
 
-                    <div className="p-4 rounded-xl border bg-slate-900/50 border-slate-800/80 opacity-70">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-sm text-slate-300">2-я Четверть</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700">
-                          🔒 Ожидает начала
-                        </span>
-                      </div>
-                      <div className="text-sm font-medium text-slate-500 mt-2">Таймер запустится после 1-й четверти</div>
-                      <p className="text-[11px] text-slate-500 mt-1">Ноябрь – Декабрь 2026</p>
-                    </div>
+                      if (info.status === 'active') {
+                        return (
+                          <div key={q.id} className="p-4 rounded-xl border bg-gradient-to-br from-cyan-950/40 to-slate-900 border-cyan-500/50 relative overflow-hidden">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-bold text-sm text-cyan-300">{q.name}</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500 text-slate-950 font-bold uppercase animate-pulse">
+                                Идёт сейчас
+                              </span>
+                            </div>
+                            <div className="text-2xl font-black font-mono text-white mt-1">
+                              {formatDaysRu(info.daysLeft)}
+                            </div>
+                            <p className="text-[11px] text-slate-400 mt-1">{q.activeDesc}</p>
+                          </div>
+                        );
+                      }
 
-                    <div className="p-4 rounded-xl border bg-slate-900/50 border-slate-800/80 opacity-70">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-sm text-slate-300">3-я Четверть</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700">
-                          🔒 Ожидает начала
-                        </span>
-                      </div>
-                      <div className="text-sm font-medium text-slate-500 mt-2">Таймер запустится в январе</div>
-                      <p className="text-[11px] text-slate-500 mt-1">Январь – Март 2027</p>
-                    </div>
+                      if (info.status === 'completed') {
+                        return (
+                          <div key={q.id} className="p-4 rounded-xl border bg-slate-900/40 border-emerald-500/20 opacity-75">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-bold text-sm text-slate-300">{q.name}</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-medium">
+                                ✓ Завершена
+                              </span>
+                            </div>
+                            <div className="text-sm font-bold text-emerald-400/90 mt-2">Пройдено</div>
+                            <p className="text-[11px] text-slate-500 mt-1">{q.periodLabel}</p>
+                          </div>
+                        );
+                      }
 
-                    <div className="p-4 rounded-xl border bg-slate-900/50 border-slate-800/80 opacity-70">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-sm text-slate-300">4-я Четверть</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700">
-                          🔒 Ожидает начала
-                        </span>
-                      </div>
-                      <div className="text-sm font-medium text-slate-500 mt-2">Финальный рывок 10 класса</div>
-                      <p className="text-[11px] text-slate-500 mt-1">Апрель – Май 2027</p>
-                    </div>
+                      return (
+                        <div key={q.id} className="p-4 rounded-xl border bg-slate-900/50 border-slate-800/80 opacity-70">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-bold text-sm text-slate-300">{q.name}</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700">
+                              🔒 Ожидает начала
+                            </span>
+                          </div>
+                          <div className="text-sm font-medium text-slate-400 mt-2">
+                            Старт через {formatDaysRu(info.daysUntilStart)}
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-1">{q.periodLabel}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -809,7 +856,7 @@
                       </div>
                     </div>
 
-                    <div className="p-4 bg-slate-950/60 border border-amber-500/30 воссоздании rounded-xl space-y-2">
+                    <div className="p-4 bg-slate-950/60 border border-amber-500/30 rounded-xl space-y-2">
                       <div className="flex justify-between items-center text-xs">
                         <span className="font-bold text-amber-400 flex items-center gap-1.5">
                           <span>📚</span> Школьный Аттестат (GPA)
